@@ -179,35 +179,52 @@ def calculer_rendement(current_opr, current_Tt4, stateInit):
     vitesse_0 = mach_0 * vitesseSon(mach_0, stateInit[1], gamma, r)
     vitesse_9 = mach_9 * vitesseSon(mach_9, stateSortieFluxPrincipal[1], gamma_postcomb, r_postcomb)
 
-    # 4. Calcul du Rendement Thermique (Eta_th)
-    # Eta_th = (Gain Energie Cinétique) / (Energie Chimique fournie)
+    # --- CALCULS DES RENDEMENTS ---
     
-    # Puissance cinétique ajoutée au fluide (par kg d'air entrant)
-    # P_kin = 0.5 * [ (1+alpha)*V9^2 + lambda*V19^2 - (1+lambda)*V0^2 ]
+    # 1. Puissance Chimique (Input)
+    puissance_chimique = alpha * Pk
+    
+    # 2. Poussée Spécifique (Fsp)
+    # F = (m_prim + m_fuel)*V9 + m_sec*V19 - m_total*V0
+    # On travaille par kg d'air entrant, donc m_total = 1+lambda
+    Fsp = (1 + alpha) * vitesse_9 + lmbda * vitesse_19 - (1 + lmbda) * vitesse_0
+    
+    # 3. Puissance Propulsive (Utile)
+    puissance_propulsive = Fsp * vitesse_0
+    
+    if puissance_chimique == 0: return 0, 0, 0
+
+    # Calcul des 3 rendements
+    eta_global = puissance_propulsive / puissance_chimique
+    
+    # Note: On peut aussi calculer le thermique et le propulsif séparément
     delta_ec = 0.5 * ((1 + alpha) * (vitesse_9**2) + lmbda * (vitesse_19**2) - (1 + lmbda) * (vitesse_0**2))
+    eta_thermique = delta_ec / puissance_chimique
+    eta_propulsif = puissance_propulsive / delta_ec if delta_ec != 0 else 0
     
-    # Puissance thermique fournie (par kg d'air entrant)
-    # P_fuel = alpha * Pk
-    energie_fuel = alpha * Pk
-    
-    if energie_fuel == 0: return 0
-    
-    eta_th = delta_ec / energie_fuel
-    return eta_th
+    return eta_global, eta_thermique, eta_propulsif
+plage_lambda = np.linspace(8, 15, 40) 
+plage_opr_fan = [1.1, 1.15, 1.20, 1.25, 1.30, 1.35, 1.40] 
 
-for taux in plage_opr:
-    rendements = []
+plt.figure(figsize=(10, 6))
+
+for taux_fan in plage_opr_fan:
+    rendements_globaux = []
+    
     for crtlmbda in plage_lambda:
-        OPRfan = taux
+        # Mise à jour des variables globales pour la simulation
+        OPRfan = taux_fan
         lmbda = crtlmbda
-        eta = calculer_rendement(40, 1600, stateInit)
-        rendements.append(eta)
+        
+        # Appel de la fonction (OPR global fixé à 40, Tt4 à 1600)
+        eta_g, eta_th, eta_p = calculer_rendement(40, 1600, stateInit)
+        rendements_globaux.append(eta_g)
     
-    plt.plot(plage_lambda, rendements, label=f'OPR fan = {taux}')
+    plt.plot(plage_lambda, rendements_globaux, label=f'OPR fan = {taux_fan}')
 
-plt.title(f"Rendement Thermique en fonction du taux de dilution (BPR) pour plusieurs OPR Fan")
-plt.xlabel("Taux de Compression Global (OPR)")
-plt.ylabel("Rendement Thermique")
+plt.title("Rendement Global en fonction du BPR (Lambda) pour différents OPR Fan")
+plt.xlabel("Taux de dilution (BPR - Lambda)")
+plt.ylabel("Rendement Global")
 plt.grid(True)
 plt.legend()
 plt.show()

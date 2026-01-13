@@ -1,6 +1,3 @@
-import matplotlib.pyplot as plt
-import numpy as np
-
 # Données de vol
 M0 = 0.8
 altitude = 36000/3.281
@@ -54,11 +51,11 @@ def compressor(tauxComp, rendement, fluideState):
   newTt = (tauxComp)**((fluideState[2]-1)/(fluideState[2]*rendement))*fluideState[1]
   return [newPt, newTt] + fluideState[2:]
 
-def combustionChamber(fluideState, TtTarget):
+def combustionChamber(fluideState):
   global alpha
   newPt = fluideState[0]*tsetaCC
-  alpha = (cp_postcomb*TtTarget - fluideState[4]*fluideState[1])/(rendementCombustion*Pk - TtTarget*cp_postcomb)
-  newTt = TtTarget
+  alpha = (cp_postcomb*TtSortieCC - fluideState[4]*fluideState[1])/(rendementCombustion*Pk - TtSortieCC*cp_postcomb)
+  newTt = TtSortieCC
   return [newPt, newTt, gamma_postcomb, r_postcomb, cp_postcomb]
 
 def turbineHP(rendement, TinComp, ToutComp, fluideState):
@@ -107,7 +104,7 @@ def motor(fluidStateInit):
   stateCompBP = state
   state = compressor(OPRhp, rendementComp, state) # Compresseur HP
   stateCompHP = state
-  state = combustionChamber(state, TtSortieCC)
+  state = combustionChamber(state)
   state = turbineHP(rendementTurbHP, stateCompBP[1], stateCompHP[1], state)
   state = turbineBP(rendementTurbBP, stateFan[1], stateCompBP[1], state_2[1], state)
   stateSortieFluxPrincipal = tuyereSortie(state)
@@ -131,83 +128,8 @@ def motor(fluidStateInit):
   r_min = (debit_principal*(1+lmbda)/3.141592*0.6)**(1/2)
 # Main ---------------------------------
 
-plage_lambda = np.linspace(8, 15, 40) # OPR de 20 à 60
-plage_opr = [1.1, 1.15, 1.20, 1.25, 1.30, 1.35, 1.40] # Différentes TtSortieCC en Kelvin
-plt.figure(figsize=(10, 6))
-
 Pt0 = Ps0 * (1+ (gamma-1)/2*(M0*M0))**(gamma/(gamma-1))
 Tt0 = Ts0 * (1+ (gamma-1)/2*(M0*M0))
 stateInit = [Pt0, Tt0, gamma, r, cp]
 
 motor(stateInit)
-
-# g
-# --- Nouvelle fonction de calcul du rendement ---
-def calculer_rendement(current_opr, current_Tt4, stateInit):
-    global alpha
-    
-    # 1. Recalculer OPRbp en fonction du OPR global demandé
-    current_OPRbp = current_opr / (OPRhp * OPRfan)
-    
-    # 2. Exécution du cycle
-    state = tuyereIn(stateInit) 
-    state_2 = state
-    
-    state = compressor(OPRfan, rendementFan, state) # Fan
-    stateFan = state
-    stateSortieFluxSecondaire = tuyereSortie(stateFan)
-
-    state = compressor(current_OPRbp, rendementComp, state) # Compresseur BP
-    stateCompBP = state
-    
-    state = compressor(OPRhp, rendementComp, state) # Compresseur HP
-    stateCompHP = state
-    
-    # Passage de la Tt4 cible à la chambre de combustion
-    state = combustionChamber(state, current_Tt4)
-    
-    state = turbineHP(rendementTurbHP, stateCompBP[1], stateCompHP[1], state)
-    state = turbineBP(rendementTurbBP, stateFan[1], stateCompBP[1], state_2[1], state)
-    stateSortieFluxPrincipal = tuyereSortie(state)
-
-    # 3. Calculs des vitesses
-    mach_19 = getMach(stateSortieFluxSecondaire[0], Ps0, gamma)
-    mach_9 = getMach(stateSortieFluxPrincipal[0], Ps0, gamma_postcomb)
-    mach_0 = getMach(stateInit[0], Ps0, gamma)
-
-    vitesse_19 = mach_19 * vitesseSon(mach_19, stateSortieFluxSecondaire[1], gamma, r)
-    vitesse_0 = mach_0 * vitesseSon(mach_0, stateInit[1], gamma, r)
-    vitesse_9 = mach_9 * vitesseSon(mach_9, stateSortieFluxPrincipal[1], gamma_postcomb, r_postcomb)
-
-    # 4. Calcul du Rendement Thermique (Eta_th)
-    # Eta_th = (Gain Energie Cinétique) / (Energie Chimique fournie)
-    
-    # Puissance cinétique ajoutée au fluide (par kg d'air entrant)
-    # P_kin = 0.5 * [ (1+alpha)*V9^2 + lambda*V19^2 - (1+lambda)*V0^2 ]
-    delta_ec = 0.5 * ((1 + alpha) * (vitesse_9**2) + lmbda * (vitesse_19**2) - (1 + lmbda) * (vitesse_0**2))
-    
-    # Puissance thermique fournie (par kg d'air entrant)
-    # P_fuel = alpha * Pk
-    energie_fuel = alpha * Pk
-    
-    if energie_fuel == 0: return 0
-    
-    eta_th = delta_ec / energie_fuel
-    return eta_th
-
-for taux in plage_opr:
-    rendements = []
-    for crtlmbda in plage_lambda:
-        OPRfan = taux
-        lmbda = crtlmbda
-        eta = calculer_rendement(40, 1600, stateInit)
-        rendements.append(eta)
-    
-    plt.plot(plage_lambda, rendements, label=f'OPR fan = {taux}')
-
-plt.title(f"Rendement Thermique en fonction du taux de dilution (BPR) pour plusieurs OPR Fan")
-plt.xlabel("Taux de Compression Global (OPR)")
-plt.ylabel("Rendement Thermique")
-plt.grid(True)
-plt.legend()
-plt.show()
