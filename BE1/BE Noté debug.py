@@ -133,13 +133,13 @@ def motor(fluidStateInit):
 
 plage_lambda = np.linspace(8, 15, 40) # OPR de 20 à 60
 plage_opr = [1.1, 1.15, 1.20, 1.25, 1.30, 1.35, 1.40] # Différentes TtSortieCC en Kelvin
-plt.figure(figsize=(10, 6))
+# plt.figure(figsize=(10, 6))
 
 Pt0 = Ps0 * (1+ (gamma-1)/2*(M0*M0))**(gamma/(gamma-1))
 Tt0 = Ts0 * (1+ (gamma-1)/2*(M0*M0))
 stateInit = [Pt0, Tt0, gamma, r, cp]
 
-motor(stateInit)
+# motor(stateInit)
 
 # g
 # --- Nouvelle fonction de calcul du rendement ---
@@ -169,6 +169,7 @@ def calculer_rendement(current_opr, current_Tt4, stateInit):
     state = turbineHP(rendementTurbHP, stateCompBP[1], stateCompHP[1], state)
     state = turbineBP(rendementTurbBP, stateFan[1], stateCompBP[1], state_2[1], state)
     stateSortieFluxPrincipal = tuyereSortie(state)
+    print("Sortie de la tuyere: ",stateSortieFluxPrincipal)
 
     # 3. Calculs des vitesses
     mach_19 = getMach(stateSortieFluxSecondaire[0], Ps0, gamma)
@@ -179,35 +180,44 @@ def calculer_rendement(current_opr, current_Tt4, stateInit):
     vitesse_0 = mach_0 * vitesseSon(mach_0, stateInit[1], gamma, r)
     vitesse_9 = mach_9 * vitesseSon(mach_9, stateSortieFluxPrincipal[1], gamma_postcomb, r_postcomb)
 
-    # 4. Calcul du Rendement Thermique (Eta_th)
-    # Eta_th = (Gain Energie Cinétique) / (Energie Chimique fournie)
+    # --- CALCULS DES RENDEMENTS ---
     
-    # Puissance cinétique ajoutée au fluide (par kg d'air entrant)
-    # P_kin = 0.5 * [ (1+alpha)*V9^2 + lambda*V19^2 - (1+lambda)*V0^2 ]
+    # 1. Puissance Chimique (Input)
+    puissance_chimique = alpha * Pk
+    
+    # 2. Poussée (F)
+    # F = (m_prim + m_fuel)*V9 + m_sec*V19 - m_total*V0
+    F = (1 + alpha) * vitesse_9 + lmbda * vitesse_19 - (1 + lmbda) * vitesse_0
+
+    # 3. Puissance Propulsive (Utile)
+    puissance_propulsive = F * vitesse_0
+    print("puissance prop:", puissance_propulsive)
+    
+    if puissance_chimique == 0: return 0, 0, 0
+
+    # Calcul des 3 rendements
+    eta_global = puissance_propulsive / puissance_chimique
+    
+    # Note: On peut aussi calculer le thermique et le propulsif séparément
     delta_ec = 0.5 * ((1 + alpha) * (vitesse_9**2) + lmbda * (vitesse_19**2) - (1 + lmbda) * (vitesse_0**2))
+    eta_thermique = delta_ec / puissance_chimique
+    eta_propulsif = puissance_propulsive / delta_ec if delta_ec != 0 else 0
     
-    # Puissance thermique fournie (par kg d'air entrant)
-    # P_fuel = alpha * Pk
-    energie_fuel = alpha * Pk
-    
-    if energie_fuel == 0: return 0
-    
-    eta_th = delta_ec / energie_fuel
-    return eta_th
+    return eta_global, eta_thermique, eta_propulsif
 
-for taux in plage_opr:
-    rendements = []
-    for crtlmbda in plage_lambda:
-        OPRfan = taux
-        lmbda = crtlmbda
-        eta = calculer_rendement(40, 1600, stateInit)
-        rendements.append(eta)
-    
-    plt.plot(plage_lambda, rendements, label=f'OPR fan = {taux}')
 
-plt.title(f"Rendement Thermique en fonction du taux de dilution (BPR) pour plusieurs OPR Fan")
-plt.xlabel("Taux de Compression Global (OPR)")
-plt.ylabel("Rendement Thermique")
-plt.grid(True)
-plt.legend()
-plt.show()
+# plage_lambda = np.linspace(2, 40, 100) 
+# plage_opr_fan = [1.25, 1.35, 1.45, 1.65, 1.85] 
+
+# plt.figure(figsize=(10, 6))
+
+eta_g, eta_th, eta_p = calculer_rendement(40, 1600, stateInit)
+    
+# plt.plot(plage_lambda, rendements_globaux, label=f'Taux compression fan = {taux_fan}')
+
+# plt.title("Rendement Global en fonction du BPR (Lambda) pour différents taux de compression du fan")
+# plt.xlabel("Taux de dilution (BPR/Lambda)")
+# plt.ylabel("Rendement Global")
+# plt.grid(True)
+# plt.legend()
+# plt.show()

@@ -4,8 +4,8 @@ import numpy as np
 # Données de vol
 M0 = 0.8
 altitude = 36000/3.281
-Ps0 = 227* 10*10
-Ts0 = 217
+# Ps0 = 227* 10*10
+# Ts0 = 217
 
 # Données fluide
 gamma = 1.4
@@ -94,76 +94,57 @@ def getSurface(mach, r, gamma, debit, fluideState):
   return debit/sig*(fluideState[1])**(1/2)/fluideState[0]
 
 
-def motor(fluidStateInit):
-  global alpha
-  print(fluidStateInit)
-  state = tuyereIn(fluidStateInit) # Tuyere 1
-  state_2 = state
-  state = compressor(OPRfan, rendementFan, state) # Fan
-  stateFan = state
-  stateSortieFluxSecondaire = tuyereSortie(stateFan)
+# def motor(fluidStateInit):
+#   global alpha
+#   print(fluidStateInit)
+#   state = tuyereIn(fluidStateInit) # Tuyere 1
+#   state_2 = state
+#   state = compressor(OPRfan, rendementFan, state) # Fan
+#   stateFan = state
+#   stateSortieFluxSecondaire = tuyereSortie(stateFan)
 
-  state = compressor(OPRbp, rendementComp, state) # Compresseur BP
-  stateCompBP = state
-  state = compressor(OPRhp, rendementComp, state) # Compresseur HP
-  stateCompHP = state
-  state = combustionChamber(state, TtSortieCC)
-  state = turbineHP(rendementTurbHP, stateCompBP[1], stateCompHP[1], state)
-  state = turbineBP(rendementTurbBP, stateFan[1], stateCompBP[1], state_2[1], state)
-  stateSortieFluxPrincipal = tuyereSortie(state)
-  print("Sortie de la tuyere: ",state)
+#   state = compressor(OPRbp, rendementComp, state) # Compresseur BP
+#   stateCompBP = state
+#   state = compressor(OPRhp, rendementComp, state) # Compresseur HP
+#   stateCompHP = state
+#   state = combustionChamber(state, TtSortieCC)
+#   state = turbineHP(rendementTurbHP, stateCompBP[1], stateCompHP[1], state)
+#   state = turbineBP(rendementTurbBP, stateFan[1], stateCompBP[1], state_2[1], state)
+#   stateSortieFluxPrincipal = tuyereSortie(state)
+#   print("Sortie de la tuyere: ",state)
 
-  # Calculs
+#   # Calculs
 
-  mach_19 = getMach(stateSortieFluxSecondaire[0], Ps0, gamma)
-  mach_9 = getMach(stateSortieFluxPrincipal[0], Ps0, gamma_postcomb)
-  mach_0 = getMach(fluidStateInit[0], Ps0, gamma)
+#   mach_19 = getMach(stateSortieFluxSecondaire[0], Ps_0, gamma)
+#   mach_9 = getMach(stateSortieFluxPrincipal[0], Ps_0, gamma_postcomb)
+#   mach_0 = getMach(fluidStateInit[0], Ps_0, gamma)
 
-  vitesse_19 = mach_19*vitesseSon(mach_19, stateSortieFluxSecondaire[1], gamma, r)
-  vitesse_0 = mach_0*vitesseSon(mach_0, fluidStateInit[1], gamma, r)
-  vitesse_9 = mach_9*vitesseSon(mach_9, stateSortieFluxPrincipal[1], gamma_postcomb, r_postcomb)
-  print(vitesse_19, vitesse_9)
+#   vitesse_19 = mach_19*vitesseSon(mach_19, stateSortieFluxSecondaire[1], gamma, r)
+#   vitesse_0 = mach_0*vitesseSon(mach_0, fluidStateInit[1], gamma, r)
+#   vitesse_9 = mach_9*vitesseSon(mach_9, stateSortieFluxPrincipal[1], gamma_postcomb, r_postcomb)
+#   print(vitesse_19, vitesse_9)
 
 
-  debit_principal=throttleObj/((1+alpha)*vitesse_9 + lmbda*vitesse_19 - (1+lmbda)*vitesse_0)
-  surface_fan = getSurface(0.6, r, gamma, debit_principal*(1+lmbda), state_2)
-  print(surface_fan)
-  r_min = (debit_principal*(1+lmbda)/3.141592*0.6)**(1/2)
+#   debit_principal=throttleObj/((1+alpha)*vitesse_9 + lmbda*vitesse_19 - (1+lmbda)*vitesse_0)
+#   surface_fan = getSurface(0.6, r, gamma, debit_principal*(1+lmbda), state_2)
+#   print(surface_fan)
+#   r_min = (debit_principal*(1+lmbda)/3.141592*0.6)**(1/2)
 # Main ---------------------------------
-
-plage_lambda = np.linspace(8, 15, 40) # OPR de 20 à 60
-plage_opr = [1.1, 1.15, 1.20, 1.25, 1.30, 1.35, 1.40] # Différentes TtSortieCC en Kelvin
-plt.figure(figsize=(10, 6))
-
-Pt0 = Ps0 * (1+ (gamma-1)/2*(M0*M0))**(gamma/(gamma-1))
-Tt0 = Ts0 * (1+ (gamma-1)/2*(M0*M0))
-stateInit = [Pt0, Tt0, gamma, r, cp]
-
-motor(stateInit)
 
 # g
 # --- Nouvelle fonction de calcul du rendement ---
-def calculer_rendement(current_opr, current_Tt4, stateInit):
+def calculer_rendement(current_opr, current_Tt4, stateInit, Ps_ambiant):
     global alpha
-    
-    # 1. Recalculer OPRbp en fonction du OPR global demandé
     current_OPRbp = current_opr / (OPRhp * OPRfan)
-    
-    # 2. Exécution du cycle
     state = tuyereIn(stateInit) 
     state_2 = state
-    
     state = compressor(OPRfan, rendementFan, state) # Fan
     stateFan = state
     stateSortieFluxSecondaire = tuyereSortie(stateFan)
-
     state = compressor(current_OPRbp, rendementComp, state) # Compresseur BP
     stateCompBP = state
-    
     state = compressor(OPRhp, rendementComp, state) # Compresseur HP
     stateCompHP = state
-    
-    # Passage de la Tt4 cible à la chambre de combustion
     state = combustionChamber(state, current_Tt4)
     
     state = turbineHP(rendementTurbHP, stateCompBP[1], stateCompHP[1], state)
@@ -171,9 +152,9 @@ def calculer_rendement(current_opr, current_Tt4, stateInit):
     stateSortieFluxPrincipal = tuyereSortie(state)
 
     # 3. Calculs des vitesses
-    mach_19 = getMach(stateSortieFluxSecondaire[0], Ps0, gamma)
-    mach_9 = getMach(stateSortieFluxPrincipal[0], Ps0, gamma_postcomb)
-    mach_0 = getMach(stateInit[0], Ps0, gamma)
+    mach_19 = getMach(stateSortieFluxSecondaire[0], Ps_ambiant, gamma)
+    mach_9 = getMach(stateSortieFluxPrincipal[0], Ps_ambiant, gamma_postcomb)
+    mach_0 = getMach(stateInit[0], Ps_ambiant, gamma)
 
     vitesse_19 = mach_19 * vitesseSon(mach_19, stateSortieFluxSecondaire[1], gamma, r)
     vitesse_0 = mach_0 * vitesseSon(mach_0, stateInit[1], gamma, r)
@@ -202,29 +183,66 @@ def calculer_rendement(current_opr, current_Tt4, stateInit):
     eta_thermique = delta_ec / puissance_chimique
     eta_propulsif = puissance_propulsive / delta_ec if delta_ec != 0 else 0
     
-    return eta_global, eta_thermique, eta_propulsif
-plage_lambda = np.linspace(8, 15, 40) 
-plage_opr_fan = [1.1, 1.15, 1.20, 1.25, 1.30, 1.35, 1.40] 
+    return eta_global, eta_thermique, eta_propulsif, (Fsp/12)
 
-plt.figure(figsize=(10, 6))
 
-for taux_fan in plage_opr_fan:
-    rendements_globaux = []
+plage_alt = np.linspace(30_000, 38_000, 40) 
+
+
+# motor(stateInit)
+# --- 1. Modèle Atmosphère Standard (ISA) ---
+def get_isa_conditions(altitude_ft):
+    # Conversion ft -> mètres
+    h = altitude_ft * 0.3048
     
-    for crtlmbda in plage_lambda:
-        # Mise à jour des variables globales pour la simulation
-        OPRfan = taux_fan
-        lmbda = crtlmbda
+    # Niveau de la mer
+    T0_isa = 288.15
+    P0_isa = 101325
+    
+    # Gradient thermique (Troposphère jusqu'à 11km)
+    
+    Ts = T0_isa - 0.0065 * h
+    Ps = P0_isa * (Ts / T0_isa)**5.2561
+    return Ps, Ts
+
+
+# plt.figure(figsize=(10, 6))
+
+rendements_globaux = []
+rendements_th = []
+rendements_prop = []
+force = []
+for alt in plage_alt:
+
+    Ps_0, Ts_0 = get_isa_conditions(alt)
+
+    print(Ps_0)
+
+    Pt0 = Ps_0 * (1+ (gamma-1)/2*(M0*M0))**(gamma/(gamma-1))
+    Tt0 = Ts_0 * (1+ (gamma-1)/2*(M0*M0))
+    stateInit = [Pt0, Tt0, gamma, r, cp]
+
+    eta_g, eta_th, eta_prop, fesp = calculer_rendement(40, 1600, stateInit, Ps_0)
+    rendements_globaux.append(eta_g)
+    rendements_th.append(eta_th)
+    rendements_prop.append(eta_prop)
+    force.append(fesp)
+    # for crtlmbda in plage_lambda:
+    #     # Mise à jour des variables globales pour la simulation
+    #     OPRfan = taux_fan
+    #     lmbda = crtlmbda
         
         # Appel de la fonction (OPR global fixé à 40, Tt4 à 1600)
-        eta_g, eta_th, eta_p = calculer_rendement(40, 1600, stateInit)
-        rendements_globaux.append(eta_g)
     
-    plt.plot(plage_lambda, rendements_globaux, label=f'OPR fan = {taux_fan}')
+# plt.plot(plage_alt, rendements_globaux, label=f'Rendement global')
+# plt.plot(plage_alt, rendements_th, label=f'Rendement chimique')
+# plt.plot(plage_alt, rendements_prop, label=f'Rendement propulsion')
 
-plt.title("Rendement Global en fonction du BPR (Lambda) pour différents OPR Fan")
-plt.xlabel("Taux de dilution (BPR - Lambda)")
-plt.ylabel("Rendement Global")
+plt.plot(plage_alt, force)
+
+plt.title("Poussée spécifique en fonction de l'altitude")
+plt.xlabel("Altitude (ft)")
+plt.ylabel("Poussée spécifique (N/(kg/s))")
 plt.grid(True)
-plt.legend()
+# plt.legend()
 plt.show()

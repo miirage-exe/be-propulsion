@@ -121,8 +121,12 @@ def motor(fluidStateInit):
   vitesse_9 = mach_9*vitesseSon(mach_9, stateSortieFluxPrincipal[1], gamma_postcomb, r_postcomb)
   print(vitesse_19, vitesse_9)
 
-
   debit_principal=throttleObj/((1+alpha)*vitesse_9 + lmbda*vitesse_19 - (1+lmbda)*vitesse_0)
+  Fsp = ((1 + alpha) * vitesse_9 + lmbda * vitesse_19 - (1 + lmbda) * vitesse_0)/debit_principal
+
+  print(Fsp)
+
+
   surface_fan = getSurface(0.6, r, gamma, debit_principal*(1+lmbda), state_2)
   print(surface_fan)
   r_min = (debit_principal*(1+lmbda)/3.141592*0.6)**(1/2)
